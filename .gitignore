@@ -1,0 +1,8 @@
+*.class
+*.log
+
+out/
+.bloop/
+.bsp/
+.metals/
+.idea/

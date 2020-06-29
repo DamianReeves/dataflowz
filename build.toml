@@ -1,0 +1,12 @@
+[project]
+scalaVersion = "2.11.12"
+testFrameworks = ["zio.test.sbt.ZTestFramework"]
+
+[module.pipez-core.jvm]
+root = "dataflowz/core"
+sources = ["dataflowz/core/src"]
+scalaDeps = [
+    ["org.apache.spark", "spark-sql", "2.3.3"],
+    ["dev.zio", "zio", "1.0.0-RC21"]
+]
+javaDeps = []
