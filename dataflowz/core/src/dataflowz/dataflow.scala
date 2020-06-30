@@ -1,92 +1,64 @@
 package dataflowz
 
-import dataflowz.dataflow.Dataflow
-import zio._
+import Dataflow._
 
-object dataflow {
+final case class Dataflow[-P1, +P2, +A](
+    private[dataflowz] val step: DataflowStep[P1, P2, A]
+) { self =>
 
-  sealed trait Dataflow[-R, -I, +E, +A] {}
+  def setParameters[P](parameters: P): Dataflow[P1, P, A] =
+    Dataflow(step.transform {
+      case (ctx, a) =>
+        (ctx.withParameters(parameters), a)
+    })
 
-  object Dataflow {
-    def input[A](
-        value: A,
-        description: Option[String] = None
-    ): Dataflow[Any, Nothing, A] = Src(Step.Given(value, description))
+  def map[B](f: A => B): Dataflow[P1, P2, B] =
+    Dataflow(step.map(f))
 
-    def returning[A](value: A): Dest[Any, Nothing, A] =
-      Dest(Step.Given(value, None))
+//  def andThen[P3,B](that:DataflowStep[P2,P3,B]) =
+//    Dataflow(step.flatMap())
 
-    def returning[A](
-        value: A,
-        description: Option[String]
-    ): Dest[Any, Nothing, A] = Dest(Step.Given(value, description))
+//  def addStep[P3, B](f: A => DataflowStep[P2, P3, B]): Dataflow[P1, P3, B] =
+//    Dataflow(step.flatMap(a => f(a)))
 
-    final case class Src[-R, -I, +E, +A](step: Step[R, -I, E, A])
-        extends Dataflow[R, E, A]
-
-    final case class Dest[-R, -I, +E, +A](step: Step[R, -I, E, A])
-        extends Dataflow[R, E, A] {
-
-      def run: ZIO[R, E, A] = step.action
-    }
-  }
-
-//  sealed trait DataflowDescriptor[+A, L] {
-//    def steps: L
-//  }
-//  object DataflowDescriptor {
-//    final case class Single[+A]()
-//  }
-
-  trait SparkSupport {
-    import org.apache.spark.sql._
-    object SparkSteps {
-      case class EnrichDataset[A](
-          enrich: Dataset[A] => Dataset[A],
-          description: Option[String]
-      ) extends Step[Any, Nothing, Dataset[A]] {
-        def action: ZIO[Any, Nothing, Dataset[A]] = ???
-      }
-    }
-  }
-
-  object internal {
-
-    private[dataflow] case class DataflowContext()
-
-    private[dataflow] trait Result[-R, +E, +A] {}
-
-    object Result {
-
-      def done[A](value: A): Result[Any, Nothing, A] = Done(value)
-      def fail[E](cause: Cause[E]): Result[Any, E, Nothing] = Fail(cause)
-
-      final case class Done[+A](value: A) extends Result[Any, Nothing, A]
-      final case class Fail[+E](cause: Cause[E]) extends Result[Any, E, Nothing]
-    }
+  def run(parameters: P1): Result[P2, A] = {
+    Result.create(step.run(parameters))
   }
 }
 
-object Examples extends App {
+object Dataflow {
 
-  def run(args: List[String]): URIO[zio.ZEnv, ExitCode] = {
-    example1.run(args)
+  final case class Result[+P, +A](toTuple: (P, A)) extends AnyVal {
+    def parameters: P = toTuple._1
+    def value: A = toTuple._2
   }
 
-  abstract class Example {
-    def run(args: List[String]): URIO[zio.ZEnv, ExitCode]
+  object Result {
+    def create[P, A](tuple: (DataflowCtx[P], A)): Result[P, A] =
+      Result(tuple._1.parameters, tuple._2)
+
+    def apply[P, A](parameters: P, value: A): Result[P, A] =
+      Result(parameters -> value)
   }
 
-  object example1 extends Example {
-    def run(args: List[String]): URIO[zio.ZEnv, ExitCode] = {
-      val dataflow =
-        Dataflow.returning(List(1, 2, 3, 4, 5))
+  val unit: Dataflow[Any, Any, Unit] = new Dataflow(Step.modify { p =>
+    DataflowCtx.fromParameters(p) -> {}
+  })
 
-      for {
-        result <- dataflow.run
-        _ <- console.putStrLn(s"Result: $result")
-      } yield ExitCode.success
+//  def apply[P1, P2, A](
+//      run: DataflowCtx[P1] => (DataflowCtx[P2], A)
+//  ): Dataflow[P1, P2, A] = {
+//    val step = DataflowStep(run)
+//    new Dataflow(step)
+//  }
+//
+//  def create[P, A](run: P => A): Dataflow[P, P, A] = {
+//    FlowStep.get[P].map(run).mapContext(DataflowCtx.fromParameters)
+//  }
 
-    }
+  def setParameters[P](parameters: P): Dataflow[Any, P, Unit] = {
+    val ctx = DataflowCtx.fromParameters(parameters)
+    Dataflow(Step.set(ctx))
   }
+
 }

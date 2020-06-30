@@ -67,9 +67,9 @@ with ScalafixModule with TpolecatModule {
 
   def scalaVersion = T { Deps.scalaVersion }
   def compileIvyDeps = Agg(ivy"com.lihaoyi::acyclic:0.1.7")
-  def scalacOptions = T {
-    super.scalacOptions() ++ Agg("-P:acyclic:force")
-  }
+//  def scalacOptions = T {
+//    super.scalacOptions() ++ Agg("-P:acyclic:force")
+//  }
   def scalacPluginIvyDeps = Agg(ivy"com.lihaoyi::acyclic:0.1.7")
 
   trait Tests extends super.Tests with DataflowzScalaTestModule
@@ -79,9 +79,12 @@ trait DataflowzScalaTestModule extends ScalaModule with TestModule
 with ScalafmtModule with ScalafixModule with TpolecatModule {
 
   def ivyDeps = Agg(
+    Deps.pprint(),
     Deps.zio.test(),
     Deps.zio.test.sbt()
   )
+
+  def scalacPluginIvyDeps = Agg(ivy"com.lihaoyi::acyclic:0.1.7")
 
   def testFrameworks =
     Seq("zio.test.sbt.ZTestFramework")
