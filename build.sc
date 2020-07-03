@@ -125,4 +125,15 @@ object dataflowz extends Module {
 
     def moduleDeps = Seq(core)
   }
+
+  object samples extends DataflowzScalaModule {
+    def modeuleDeps = Seq(
+      core,
+      spark
+    )
+
+    def ivyDeps = Agg(
+      Deps.spark.sql()
+    )
+  }
 }
