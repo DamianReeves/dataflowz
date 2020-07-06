@@ -4,7 +4,7 @@ import org.apache.spark.sql.{Encoder, Dataset, SparkSession}
 import scala.reflect.ClassTag
 
 sealed trait RecordSet[A] { self =>
-  def toDataset(implicit ev: Encoder[A]): SparkSession => Dataset[A]
+  def toDataset[A1 >: A: Encoder]: SparkSession => Dataset[A1]
   def toArray(implicit ev: ClassTag[A]): Array[A]
 }
 
@@ -18,8 +18,8 @@ object RecordSet {
   private final case class RecordSetOfDataSet[A](data: Dataset[A])
       extends RecordSet[A] {
 
-    def toDataset(implicit ev: Encoder[A]): SparkSession => Dataset[A] =
-      _ => data
+    def toDataset[A1 >: A: Encoder]: SparkSession => Dataset[A1] =
+      _ => data.as[A1]
 
     def toArray(implicit ev: ClassTag[A]): Array[A] = data.collect()
   }
@@ -28,7 +28,7 @@ object RecordSet {
       data: List[A]
   ) extends RecordSet[A] {
 
-    def toDataset(implicit ev: Encoder[A]): SparkSession => Dataset[A] = {
+    def toDataset[A1 >: A: Encoder]: SparkSession => Dataset[A1] = {
       sparkSession => sparkSession.createDataset(data)
     }
 
