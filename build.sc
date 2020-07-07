@@ -33,6 +33,7 @@ object Deps {
   object spark extends Dep("org.apache.spark::spark", "2.3.3") {
 
     object sql extends Dep(sub("sql"), version)
+    object jdbc extends Dep(sub("jdbc"), version)
     object streaming extends Dep(sub("streaming"), version)
 
   }
@@ -133,7 +134,8 @@ object dataflowz extends Module {
     )
 
     def ivyDeps = Agg(
-      Deps.spark.sql()
+      Deps.spark.sql(),
+      Deps.spark.jdbc()
     )
   }
 }
