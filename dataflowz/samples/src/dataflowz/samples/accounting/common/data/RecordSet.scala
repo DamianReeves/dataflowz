@@ -1,39 +1,61 @@
 package dataflowz.samples.accounting.common.data
 
-import org.apache.spark.sql.{Encoder, Dataset, SparkSession}
+import org.apache.spark.sql.{Dataset, Encoder, SparkSession}
+
 import scala.reflect.ClassTag
 
-sealed trait RecordSet[A] { self =>
-  def toDataset[A1 >: A: Encoder]: SparkSession => Dataset[A1]
-  def toArray(implicit ev: ClassTag[A]): Array[A]
+sealed abstract class RecordSet[A] { self =>
+
+  def count:Long
+
+  def isEmpty:Boolean = self.count == 0
+
+  def toArray:Array[A]
+
+  def toDataset[A1 >: A:Encoder]:SparkSession => Dataset[A1]
+
+  def toList: List[A]
+
 }
 
 object RecordSet {
 
-  def fromDataset[A](dataset: Dataset[A]): RecordSet[A] =
+  def ofDataset[A](dataset: Dataset[A]): RecordSet[A] =
     RecordSetOfDataSet(dataset)
 
-  def fromList[A: Encoder](data: List[A]): RecordSet[A] = RecordSetOfList(data)
+  def ofList[A: ClassTag](data: List[A] = List.empty) : RecordSet[A] = RecordSetOfList(data)
+  def ofList[A: ClassTag](first:A, rest:A*): RecordSet[A] = RecordSetOfList(first::rest.toList)
 
   private final case class RecordSetOfDataSet[A](data: Dataset[A])
-      extends RecordSet[A] {
+    extends RecordSet[A] { self =>
+
+    def count:Long = data.count()
 
     def toDataset[A1 >: A: Encoder]: SparkSession => Dataset[A1] =
       _ => data.as[A1]
 
-    def toArray(implicit ev: ClassTag[A]): Array[A] = data.collect()
+    def toArray: Array[A] = data.collect()
+
+    def toList: List[A] = data.collect().toList
+
   }
 
-  private final case class RecordSetOfList[A](
-      data: List[A]
-  ) extends RecordSet[A] {
+  private final case class RecordSetOfList[A:ClassTag](
+     data: List[A]
+   ) extends RecordSet[A] { self =>
+
+    def count:Long = data.size
+
+    override def isEmpty:Boolean = data.isEmpty
 
     def toDataset[A1 >: A: Encoder]: SparkSession => Dataset[A1] = {
       sparkSession => sparkSession.createDataset(data)
     }
 
-    def toArray(implicit ev: ClassTag[A]): Array[A] = {
-      data.toArray
+    def toArray: Array[A] = {
+      data.toArray[A]
     }
+
+    def toList:List[A] = data
   }
 }
