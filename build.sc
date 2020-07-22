@@ -137,5 +137,7 @@ object dataflowz extends Module {
       Deps.spark.sql(),
       Deps.spark.jdbc()
     )
+
+    object test extends Tests
   }
 }
