@@ -27,6 +27,12 @@ object Deps {
       extends Dep("com.opentable.components:otj-pg-embedded", "0.13.1")
 
   object fastparse extends Dep("com.lihaoyi::fastparse", "2.3.0")
+  object framelesss extends Dep("org.typelevel::frameless", "0.8.0") {
+    object core extends Dep(sub("core"), version)
+    object cats extends Dep(sub("cats"), version)
+    object dataset extends Dep(sub("dataset"), version)
+  }
+  
   object upickle extends Dep("com.lihaoyi::upickle", "1.1.0")
   object pprint extends Dep("com.lihaoyi::pprint", "0.5.4")
 
@@ -121,6 +127,7 @@ object dataflowz extends Module {
       Deps.zio.logging.sl4j(),
       Deps.otjPgEmbedded(),
       Deps.postgres(),
+      Deps.frameless.dataset(),
       Deps.quill()
     )
 
