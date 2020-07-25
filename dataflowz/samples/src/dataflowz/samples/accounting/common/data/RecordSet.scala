@@ -6,13 +6,13 @@ import scala.reflect.ClassTag
 
 sealed abstract class RecordSet[A] { self =>
 
-  def count:Long
+  def count: Long
 
-  def isEmpty:Boolean = self.count == 0
+  def isEmpty: Boolean = self.count == 0
 
-  def toArray:Array[A]
+  def toArray: Array[A]
 
-  def toDataset[A1 >: A:Encoder]:SparkSession => Dataset[A1]
+  def toDataset[A1 >: A: Encoder]: SparkSession => Dataset[A1]
 
   def toList: List[A]
 
@@ -23,13 +23,15 @@ object RecordSet {
   def ofDataset[A](dataset: Dataset[A]): RecordSet[A] =
     RecordSetOfDataSet(dataset)
 
-  def ofList[A: ClassTag](data: List[A] = List.empty) : RecordSet[A] = RecordSetOfList(data)
-  def ofList[A: ClassTag](first:A, rest:A*): RecordSet[A] = RecordSetOfList(first::rest.toList)
+  def ofList[A: ClassTag](data: List[A] = List.empty): RecordSet[A] =
+    RecordSetOfList(data)
+  def ofList[A: ClassTag](first: A, rest: A*): RecordSet[A] =
+    RecordSetOfList(first :: rest.toList)
 
   private final case class RecordSetOfDataSet[A](data: Dataset[A])
-    extends RecordSet[A] { self =>
+      extends RecordSet[A] { self =>
 
-    def count:Long = data.count()
+    def count: Long = data.count()
 
     def toDataset[A1 >: A: Encoder]: SparkSession => Dataset[A1] =
       _ => data.as[A1]
@@ -40,13 +42,13 @@ object RecordSet {
 
   }
 
-  private final case class RecordSetOfList[A:ClassTag](
-     data: List[A]
-   ) extends RecordSet[A] { self =>
+  private final case class RecordSetOfList[A: ClassTag](
+      data: List[A]
+  ) extends RecordSet[A] { self =>
 
-    def count:Long = data.size
+    def count: Long = data.size.toLong
 
-    override def isEmpty:Boolean = data.isEmpty
+    override def isEmpty: Boolean = data.isEmpty
 
     def toDataset[A1 >: A: Encoder]: SparkSession => Dataset[A1] = {
       sparkSession => sparkSession.createDataset(data)
@@ -56,6 +58,6 @@ object RecordSet {
       data.toArray[A]
     }
 
-    def toList:List[A] = data
+    def toList: List[A] = data
   }
 }

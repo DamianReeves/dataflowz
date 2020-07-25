@@ -27,12 +27,12 @@ object Deps {
       extends Dep("com.opentable.components:otj-pg-embedded", "0.13.1")
 
   object fastparse extends Dep("com.lihaoyi::fastparse", "2.3.0")
-  object framelesss extends Dep("org.typelevel::frameless", "0.8.0") {
+  object frameless extends Dep("org.typelevel::frameless", "0.8.0") {
     object core extends Dep(sub("core"), version)
     object cats extends Dep(sub("cats"), version)
     object dataset extends Dep(sub("dataset"), version)
   }
-  
+
   object upickle extends Dep("com.lihaoyi::upickle", "1.1.0")
   object pprint extends Dep("com.lihaoyi::pprint", "0.5.4")
 
@@ -69,8 +69,11 @@ object Deps {
   }
 }
 
-trait DataflowzScalaModule extends ScalaModule with ScalafmtModule
-with ScalafixModule with TpolecatModule {
+trait DataflowzScalaModule
+    extends ScalaModule
+    with ScalafmtModule
+    with ScalafixModule
+    with TpolecatModule {
 
   def scalaVersion = T { Deps.scalaVersion }
   def compileIvyDeps = Agg(ivy"com.lihaoyi::acyclic:0.1.7")
@@ -82,8 +85,12 @@ with ScalafixModule with TpolecatModule {
   trait Tests extends super.Tests with DataflowzScalaTestModule
 }
 
-trait DataflowzScalaTestModule extends ScalaModule with TestModule
-with ScalafmtModule with ScalafixModule with TpolecatModule {
+trait DataflowzScalaTestModule
+    extends ScalaModule
+    with TestModule
+    with ScalafmtModule
+    with ScalafixModule
+    with TpolecatModule {
 
   def ivyDeps = Agg(
     Deps.pprint(),
@@ -141,8 +148,7 @@ object dataflowz extends Module {
     )
 
     def ivyDeps = Agg(
-      Deps.spark.sql(),
-      Deps.spark.jdbc()
+      Deps.spark.sql()
     )
 
     object test extends Tests

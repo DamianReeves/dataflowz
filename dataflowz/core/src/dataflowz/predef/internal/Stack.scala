@@ -78,7 +78,7 @@ private[dataflowz] final class Stack[A <: AnyRef]() {
   def peekOrElse(a: A): A = if (size <= 0) a else peek()
 }
 
-private[zio] object Stack {
+private[dataflowz] object Stack {
   def apply[A <: AnyRef](): Stack[A] = new Stack[A]
   def apply[A <: AnyRef](a: A): Stack[A] = {
     val stack = new Stack[A]
