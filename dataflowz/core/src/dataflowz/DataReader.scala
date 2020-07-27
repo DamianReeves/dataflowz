@@ -1,33 +1,59 @@
 package dataflowz
 
 import zio._
+import DataReader._
 
-final case class DataReader[-Req, -Ctx, +Err, +Resp](
-    read: Req => ZIO[Ctx, Err, Resp]
-) { self =>
-
-  def contramap[Request0](f: Request0 => Req): DataReader[Request0, Ctx, Err, Resp] =
-    DataReader { request: Request0 => self.read(f(request)) }
+sealed trait DataReader[-Req, -Ctx, +Err, +Resp] { self =>
 
   def flatMap[Req1 <: Req, C1 <: Ctx, E1 >: Err, Resp1](
-      f: (Req1, Resp) => DataReader[Req1, C1, E1, Resp1]
+      f: Resp => DataReader[Req1, C1, E1, Resp1]
   ): DataReader[Req1, C1, E1, Resp1] =
-    DataReader { request =>
-      val res: ZIO[Ctx, Err, Resp] = self.read(request)
-      res.flatMap { response => f(request, response).read(request) }
-    }
+    FlatMap(self, f)
 
-  def map[Response1](f: Resp => Response1): DataReader[Req, Ctx, Err, Response1] =
-    DataReader { request: Req => self.read(request).map(f) }
+  def map[Resp1](f: Resp => Resp1): DataReader[Req, Ctx, Err, Resp1] =
+    FlatMap(self, (resp: Resp) => DataReader.succeed(f(resp)))
+
+  def read(request: Req): ZIO[Ctx, Err, Resp] = self match {
+    case Succeed(value) => ZIO.succeed(value)
+    case Fail(error)    => ZIO.fail(error)
+    case FlatMap(value, continue) =>
+      for {
+        resp <- value.read(request)
+        result <- continue(resp).read(request)
+      } yield result
+    case DataReader.Access(access) =>
+      ZIO.environment.flatMap { ctx: Ctx =>
+        val reader = access(request, ctx)
+        reader.read(request)
+      }
+  }
 }
 
 object DataReader {
 
-  def succeed[Response](response: => Response): DataReader[Any, Any, Nothing, Response] =
-    DataReader(_ => ZIO.succeed(response))
+  val unit: UDataReader[Any, Unit] = Succeed(())
+
+  def fail[E](error: E): DataReader[Any, Any, E, Nothing] = Fail(error)
+
+  def succeed[Response](response: => Response): UDataReader[Any, Response] =
+    Succeed(response)
+
+  def context[Ctx]: DataReader[Any, Ctx, Nothing, Ctx] = Access((_, ctx) => succeed(ctx))
 
   def fromRequest[Request]: DataReader[Request, Any, Nothing, Request] =
-    DataReader { request: Request => ZIO.succeed(request) }
+    Access { (request, _) => succeed(request) }
+
+  private final case class Succeed[A](value: A) extends DataReader[Any, Any, Nothing, A]
+  private final case class Fail[+E](error: E) extends DataReader[Any, Any, E, Nothing]
+
+  private final case class FlatMap[-Req, -Ctx, +E, A, +B](
+      value: DataReader[Req, Ctx, E, A],
+      continue: A => DataReader[Req, Ctx, E, B]
+  ) extends DataReader[Req, Ctx, E, B]
+
+  private final case class Access[Req, Ctx, Err, Resp](
+      access: (Req, Ctx) => DataReader[Req, Ctx, Err, Resp]
+  ) extends DataReader[Req, Ctx, Err, Resp]
 
   object Usage {
     final case class Order(product: String, quantity: Int, price: BigDecimal)
@@ -46,11 +72,6 @@ object DataReader {
     val reader1: DataReader[Any, Any, Nothing, Seq[Int]] = DataReader.succeed(Seq(1, 2, 3))
     val reader2: DataReader[Any, Any, Nothing, Seq[String]] =
       DataReader.succeed(Seq("One", "Two", "Three"))
-
-    val reader =
-      for {
-        co <- customerOrderReader
-      } yield co
 
   }
 }
